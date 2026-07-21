@@ -12,6 +12,7 @@
 #error compiler unknown, could not detect gcc, clang, or msvc
 #else
 
+#include <concepts>
 #include <functional>
 #include <meta>
 #include <ranges>
@@ -23,10 +24,16 @@ namespace irv {
         struct name_or_index {
             tp_data_t m_data;
 
-            auto constexpr static m_is_index = std::integral<tp_data_t>;
+            auto constexpr static is_index = std::integral<tp_data_t>;
+            auto constexpr static is_name  = !is_index;
+
+            template<typename tp_const_char_pointer_t>
+            requires (!std::integral<tp_const_char_pointer_t>)
+            constexpr name_or_index(tp_const_char_pointer_t p_data) noexcept
+            : m_data{p_data} {}
 
             template<std::size_t tp_size>
-            constexpr name_or_index(const char (&p_data)[tp_size]) {
+            constexpr name_or_index(const char (&p_data)[tp_size]) noexcept {
                 std::ranges::copy(
                     p_data,
                     std::ranges::begin(m_data)
@@ -34,12 +41,35 @@ namespace irv {
             }
 
             template<std::size_t tp_size>
-            constexpr name_or_index(const std::array<char, tp_size>& p_data) {
+            constexpr name_or_index(const std::array<char, tp_size>& p_data) noexcept {
                 m_data = p_data;
             }
             
-            constexpr name_or_index(const std::size_t p_index) : m_data{p_index} {}
+            constexpr name_or_index(std::size_t p_index) noexcept : m_data{p_index} {}
+
+            [[nodiscard]]
+            auto constexpr get_name()
+            const noexcept
+            -> std::string_view
+            requires (!is_index) {
+                if constexpr (std::is_pointer_v<tp_data_t>)
+                    return std::string_view{m_data};
+                else return std::string_view{std::ranges::data(m_data)};
+            }
+            [[nodiscard]]
+            auto constexpr get_index()
+            const noexcept
+            -> std::size_t
+            requires (is_index) {
+                return m_data;
+            }
         };
+
+        template<typename tp_type_t>
+        requires (!std::integral<tp_type_t>)
+        name_or_index(tp_type_t) ->
+        name_or_index<const char*>;
+
         template<std::size_t tp_size>
         name_or_index(const char (&)[tp_size]) ->
         name_or_index<std::array<char, tp_size>>;
@@ -57,38 +87,32 @@ namespace irv {
             template<typename tp_type_t>
             [[nodiscard]]
             auto consteval static get_member() noexcept -> auto {
-                auto constexpr static l_members =
-                    std::define_static_array(std::meta::members_of(
+                auto constexpr static l_members = std::define_static_array(
+                    std::meta::members_of(
                         ^^std::remove_cvref_t<tp_type_t>,
                         std::meta::access_context::current()
-                    ));
-                auto constexpr l_is_valid_member = [](std::meta::info p_info) {
-                    return
-                        std::meta::has_identifier(p_info) && (
-                            std::meta::is_static_member(p_info) ||
-                            std::meta::is_function(p_info) ||
-                            std::meta::is_nonstatic_data_member(p_info)
-                        );
-                };
-                if constexpr (tp_name_or_index.m_is_index) {
-                    auto constexpr static l_valid_members = std::define_static_array(l_members | std::views::filter(l_is_valid_member));
-                    if constexpr (tp_name_or_index.m_data < std::ranges::size(l_valid_members))
-                        return l_valid_members[tp_name_or_index.m_data];
+                    ) |
+                    std::views::filter([](std::meta::info p_info) {
+                        return
+                            std::meta::has_identifier(p_info) && (
+                                std::meta::is_static_member(p_info) ||
+                                std::meta::is_function(p_info) ||
+                                std::meta::is_nonstatic_data_member(p_info)
+                            );
+                        })
+                );
+                if constexpr (tp_name_or_index.is_index) {
+                    if constexpr (tp_name_or_index.get_index() < std::ranges::size(l_members))
+                        return l_members[tp_name_or_index.get_index()];
                     else return;
                 }
-                else template for (auto constexpr l_member : l_members) {
-                    if constexpr (
-                        l_is_valid_member(l_member) &&
-                        std::meta::identifier_of(l_member) == std::string_view{std::ranges::begin(tp_name_or_index.m_data)}
-                    ) {
+                else template for (auto constexpr l_member : l_members)
+                    if constexpr (std::meta::identifier_of(l_member) == tp_name_or_index.get_name())
                         return l_member;
-                    }
-                }
             }
             template<typename tp_type_t>
             auto constexpr static can_get_member = !std::is_void_v<decltype(get_member<tp_type_t>())>;
         public:
-
             template<typename tp_type_t>
             requires(
                 std::is_class_v<std::remove_cvref_t<tp_type_t>> &&
