@@ -128,7 +128,10 @@ namespace irv {
             }
 
             // note: non-static member functions and non-static member function templates
-            template<typename tp_type_t>
+            template<
+                typename tp_type_t,
+                class... tp_arguments_ts
+            >
             requires(
                 std::is_class_v<std::remove_cvref_t<tp_type_t>> &&
                 can_get_member<tp_type_t> &&
@@ -138,10 +141,13 @@ namespace irv {
                 )
             )
             [[nodiscard]]
-            auto constexpr operator()(tp_type_t&& p_object)
-            const noexcept(noexcept(std::declval<tp_type_t>().[:get_member<tp_type_t>():]()))
-            -> decltype(std::forward<tp_type_t>(p_object).[:get_member<tp_type_t>():]()) {
-                return std::forward<tp_type_t>(p_object).[:get_member<tp_type_t>():]();
+            auto constexpr operator()(
+                tp_type_t&&          p_object,
+                tp_arguments_ts&&... p_arguments
+            )
+            const noexcept(noexcept(std::declval<tp_type_t>().[:get_member<tp_type_t>():](std::declval<tp_arguments_ts>()...)))
+            -> decltype(std::forward<tp_type_t>(p_object).[:get_member<tp_type_t>():](std::forward<tp_arguments_ts>(p_arguments)...)) {
+                return std::forward<tp_type_t>(p_object).[:get_member<tp_type_t>():](std::forward<tp_arguments_ts>(p_arguments)...);
             }
 
             // note: static data members
@@ -161,7 +167,10 @@ namespace irv {
             }
 
             // note: static member functions and static member function templates
-            template<typename tp_type_t>
+            template<
+                typename tp_type_t,
+                class... tp_arguments_ts
+            >
             requires(
                 std::is_class_v<std::remove_cvref_t<tp_type_t>> &&
                 can_get_member<tp_type_t> &&
@@ -171,10 +180,13 @@ namespace irv {
                 )
             )
             [[nodiscard]]
-            auto constexpr operator()([[maybe_unused]] tp_type_t&& p_object)
-            const noexcept(noexcept([:get_member<tp_type_t>():]()))
-            -> decltype([:get_member<tp_type_t>():]()) {
-                return [:get_member<tp_type_t>():]();
+            auto constexpr operator()(
+                [[maybe_unused]] tp_type_t&& p_object,
+                tp_arguments_ts&&...         p_arguments
+            )
+            const noexcept(noexcept([:get_member<tp_type_t>():](std::declval<tp_arguments_ts>()...)))
+            -> decltype([:get_member<tp_type_t>():](std::forward<tp_arguments_ts>(p_arguments)...)) {
+                return [:get_member<tp_type_t>():](std::forward<tp_arguments_ts>(p_arguments)...);
             }
 
             // note: pointer-to-class
