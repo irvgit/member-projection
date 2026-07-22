@@ -112,6 +112,7 @@ namespace irv {
             }
             template<typename tp_type_t>
             auto constexpr static can_get_member = !std::is_void_v<decltype(get_member<tp_type_t>())>;
+
         public:
             // note: data members
             template<typename tp_type_t>
@@ -131,17 +132,14 @@ namespace irv {
                 return std::forward<tp_type_t>(p_object).[:get_member<tp_type_t>():];
             }
 
-            // note: member functions and member function templates
+            // note: member functions, member function templates, and data members invoked
             template<
                 typename tp_type_t,
                 class... tp_arguments_ts
             >
             requires(
                 std::is_class_v<std::remove_cvref_t<tp_type_t>> &&
-                can_get_member<tp_type_t> && (
-                    std::meta::is_function(get_member<tp_type_t>()) ||
-                    std::meta::is_function_template(get_member<tp_type_t>())
-                )
+                can_get_member<tp_type_t>
             )
             [[nodiscard]]
             auto constexpr operator()(
