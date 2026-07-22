@@ -169,16 +169,40 @@ namespace irv {
     auto constexpr member = detail::member_fn<tp_name_or_index>{};
 
     template<
-        typename              tp_type_t,
-        detail::name_or_index tp_name_or_index
+        detail::name_or_index tp_name_or_index,
+        typename              tp_object_t,
+        class...              tp_arguments_ts
     >
-    concept member_projectable = requires { member<tp_name_or_index>(std::declval<tp_type_t>()); };
+    concept member_projectable = requires {
+        member<tp_name_or_index>(
+            std::declval<tp_object_t>(),
+            std::declval<tp_arguments_ts>()...
+        );
+    };
 
     template<
-        typename              tp_type_t,
-        detail::name_or_index tp_name_or_index
+        detail::name_or_index tp_name_or_index,
+        typename              tp_object_t,
+        class...              tp_arguments_ts
     >
-    using member_t = decltype(member<tp_name_or_index>(std::declval<tp_type_t>())());
+    auto constexpr nothrow_member_projectable = noexcept(
+        member<tp_name_or_index>(
+            std::declval<tp_object_t>(),
+            std::declval<tp_arguments_ts>()...
+        )
+    );
+
+    template<
+        detail::name_or_index tp_name_or_index,
+        typename              tp_object_t,
+        class...              tp_arguments_ts
+    >
+    using member_t = decltype(
+        member<tp_name_or_index>(
+            std::declval<tp_object_t>(),
+            std::declval<tp_arguments_ts>()...
+        )
+    );
 }
 
 #endif
