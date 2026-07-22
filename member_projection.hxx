@@ -113,12 +113,16 @@ namespace irv {
             template<typename tp_type_t>
             auto constexpr static can_get_member = !std::is_void_v<decltype(get_member<tp_type_t>())>;
         public:
-            // note: non-static data members
+            // note: data members
             template<typename tp_type_t>
             requires(
                 std::is_class_v<std::remove_cvref_t<tp_type_t>> &&
                 can_get_member<tp_type_t> &&
-                std::meta::is_nonstatic_data_member(get_member<tp_type_t>())
+                std::meta::is_nonstatic_data_member(get_member<tp_type_t>()) || (
+                    std::meta::is_static_member(get_member<tp_type_t>()) &&
+                    !std::meta::is_function(get_member<tp_type_t>()) &&
+                    !std::meta::is_function_template(get_member<tp_type_t>())
+                )
             )
             [[nodiscard]]
             auto constexpr operator()(tp_type_t&& p_object)
@@ -127,15 +131,14 @@ namespace irv {
                 return std::forward<tp_type_t>(p_object).[:get_member<tp_type_t>():];
             }
 
-            // note: non-static member functions and non-static member function templates
+            // note: member functions and member function templates
             template<
                 typename tp_type_t,
                 class... tp_arguments_ts
             >
             requires(
                 std::is_class_v<std::remove_cvref_t<tp_type_t>> &&
-                can_get_member<tp_type_t> &&
-                !std::meta::is_static_member(get_member<tp_type_t>()) && (
+                can_get_member<tp_type_t> && (
                     std::meta::is_function(get_member<tp_type_t>()) ||
                     std::meta::is_function_template(get_member<tp_type_t>())
                 )
@@ -149,46 +152,7 @@ namespace irv {
             -> decltype(std::forward<tp_type_t>(p_object).[:get_member<tp_type_t>():](std::forward<tp_arguments_ts>(p_arguments)...)) {
                 return std::forward<tp_type_t>(p_object).[:get_member<tp_type_t>():](std::forward<tp_arguments_ts>(p_arguments)...);
             }
-
-            // note: static data members
-            template<typename tp_type_t>
-            requires(
-                std::is_class_v<std::remove_cvref_t<tp_type_t>> &&
-                can_get_member<tp_type_t> &&
-                std::meta::is_static_member(get_member<tp_type_t>()) &&
-                !std::meta::is_function(get_member<tp_type_t>()) &&
-                !std::meta::is_function_template(get_member<tp_type_t>())
-            )
-            [[nodiscard]]
-            auto constexpr operator()([[maybe_unused]] tp_type_t&& p_object)
-            const noexcept
-            -> decltype(auto) {
-                return [:get_member<tp_type_t>():];
-            }
-
-            // note: static member functions and static member function templates
-            template<
-                typename tp_type_t,
-                class... tp_arguments_ts
-            >
-            requires(
-                std::is_class_v<std::remove_cvref_t<tp_type_t>> &&
-                can_get_member<tp_type_t> &&
-                std::meta::is_static_member(get_member<tp_type_t>()) && (
-                    std::meta::is_function(get_member<tp_type_t>()) ||
-                    std::meta::is_function_template(get_member<tp_type_t>())
-                )
-            )
-            [[nodiscard]]
-            auto constexpr operator()(
-                [[maybe_unused]] tp_type_t&& p_object,
-                tp_arguments_ts&&...         p_arguments
-            )
-            const noexcept(noexcept([:get_member<tp_type_t>():](std::declval<tp_arguments_ts>()...)))
-            -> decltype([:get_member<tp_type_t>():](std::forward<tp_arguments_ts>(p_arguments)...)) {
-                return [:get_member<tp_type_t>():](std::forward<tp_arguments_ts>(p_arguments)...);
-            }
-
+            
             // note: pointer-to-class
             template<typename tp_type_t>
             requires(
