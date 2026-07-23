@@ -128,7 +128,7 @@ namespace irv {
             [[nodiscard]]
             auto constexpr operator()(tp_type_t&& p_object)
             const noexcept(noexcept(std::declval<tp_type_t>().[:get_member<tp_type_t>():]))
-            -> decltype(auto) {
+            -> auto&& {
                 return std::forward<tp_type_t>(p_object).[:get_member<tp_type_t>():];
             }
 
