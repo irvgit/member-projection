@@ -118,12 +118,13 @@ namespace irv {
             template<typename tp_type_t>
             requires(
                 std::is_class_v<std::remove_cvref_t<tp_type_t>> &&
-                can_get_member<tp_type_t> &&
-                std::meta::is_nonstatic_data_member(get_member<tp_type_t>()) || (
-                    std::meta::is_static_member(get_member<tp_type_t>()) &&
-                    !std::meta::is_function(get_member<tp_type_t>()) &&
-                    !std::meta::is_function_template(get_member<tp_type_t>())
-                )
+                requires {
+                    requires std::meta::is_nonstatic_data_member(get_member<tp_type_t>()) || (
+                        std::meta::is_static_member(get_member<tp_type_t>()) &&
+                        !std::meta::is_function(get_member<tp_type_t>()) &&
+                        !std::meta::is_function_template(get_member<tp_type_t>())
+                    );
+                }
             )
             [[nodiscard]]
             auto constexpr operator()(tp_type_t&& p_object)
@@ -152,16 +153,32 @@ namespace irv {
             }
             
             // note: pointer-to-class
-            template<typename tp_type_t>
-            requires(
-                std::is_class_v<tp_type_t> &&
-                can_get_member<tp_type_t>
-            )
+            template<
+                typename tp_type_t,
+                class... tp_arguments_ts
+            >
+            requires(std::is_pointer_v<tp_type_t>)
             [[nodiscard]]
-            auto constexpr operator()(tp_type_t* p_pointer_to_object)
-            const noexcept(noexcept((*this)(*p_pointer_to_object)))
-            -> decltype((*this)(*p_pointer_to_object)) {
-                return (*this)(*p_pointer_to_object);
+            auto constexpr operator()(
+                tp_type_t            p_pointer_to_object,
+                tp_arguments_ts&&... p_arguments
+            )
+            const noexcept(noexcept(
+                (*this)(
+                    *p_pointer_to_object,
+                    std::declval<tp_arguments_ts>(p_arguments)...
+                )
+            ))
+            -> decltype(
+                (*this)(
+                    *p_pointer_to_object,
+                    std::forward<tp_arguments_ts>(p_arguments)...
+                )
+            ) {
+                return (*this)(
+                    *p_pointer_to_object,
+                    std::forward<tp_arguments_ts>(p_arguments)...
+                );
             }
         };
     }
